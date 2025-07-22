@@ -72,16 +72,16 @@ curl -X POST "{{base}}/admin/users/${CLIENT_ID}/assign_level/${LEVEL_ID}" \
 # --- Level Management ---
 
 # Create Level (Admin)
-curl -X POST "{{base}}/levels" \
-     -H "Authorization: Bearer {{ADMIN_TOKEN}}" \
-     -F "name=Sample Level" \
-     -F "description=A description for the sample level." \
-     -F "level_number=1" \
-     -F "welcome_video_url=https://www.youtube.com/watch?v=sample_welcome" \
-     -F "price=19.99" \
-     -F "initial_exam_question=What is the capital of France?" \
-     -F "final_exam_question=Summarize the key concepts of this level." \
-     -F "file=@/path/to/your/image.jpg"
+     curl -X POST "{{base}}/levels" \
+          -H "Authorization: Bearer {{ADMIN_TOKEN}}" \
+          -F "name=Sample Level" \
+          -F "description=A description for the sample level." \
+          -F "level_number=1" \
+          -F "welcome_video_url=https://www.youtube.com/watch?v=sample_welcome" \
+          -F "price=19.99" \
+          -F "initial_exam_question=What is the capital of France?" \
+          -F "final_exam_question=Summarize the key concepts of this level." \
+          -F "file=@/path/to/your/image.jpg"
 
 # Get All Levels with Filters (Client)
 curl -X GET "{{base}}/levels?min_price=10&max_price=50&level_number=1&name=Sample" \

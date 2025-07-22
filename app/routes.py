@@ -345,10 +345,10 @@ def delete_level(level_id):
 @admin_or_client_required
 def get_levels():
     current_user_id = int(get_jwt_identity())
-    user = User.query.get(current_user_id)
+    user =-User.query.get(current_user_id)
     
     min_price = request.args.get('min_price', type=float)
-    max_price = request.args.get('max_price' ,type=float)
+    max_price = request.args.get('max_price', type=float)
     level_number = request.args.get('level_number', type=int)
     name = request.args.get('name')
     
@@ -402,7 +402,7 @@ def get_levels():
                 }
                 level_data['videos'].append(video_data)
         else:
-            level_data['videos'] = [{'id': v.id, 'youtube_link': '', 'questions': [], 'is_opened': False} for v in level.videos]
+            level_data['videos'] = [{'id': v.id, 'youtube_link': '', 'questions': [], 'is_opened': False}  for v in level.videos]
         
         if user.role == 'admin':
             level_data['user_count'] = len(level.user_levels)
@@ -640,7 +640,9 @@ def submit_initial_exam(level_id):
         correct_words=data['correct_words'],
         wrong_words=data['wrong_words'],
         percentage=percentage,
-        type='initial'
+        type='initial',
+        correct_words_list=json.dumps(data.get('correct_words_list', [])),
+        wrong_words_list=json.dumps(data.get('wrong_words_list', []))
     )
     
     user_level.initial_exam_score = percentage
@@ -679,7 +681,9 @@ def submit_final_exam(level_id):
         correct_words=data['correct_words'],
         wrong_words=data['wrong_words'],
         percentage=percentage,
-        type='final'
+        type='final',
+        correct_words_list=json.dumps(data.get('correct_words_list', [])),
+        wrong_words_list=json.dumps(data.get('wrong_words_list', []))
     )
     
     user_level.final_exam_score = percentage
@@ -740,6 +744,118 @@ def get_all_exam_results():
         'timestamp': exam.timestamp.isoformat()
     } for exam in exam_results]
     return jsonify(result), 200
+
+# Video Questions Submission Route
+@bp.route('/users/<int:user_id>/levels/<int:level_id>/videos/<int:video_id>/submit_questions', methods=['POST'])
+@client_required
+def submit_video_questions(user_id, level_id, video_id):
+    current_user_id = int(get_jwt_identity())
+    user = User.query.get(current_user_id)
+    if user.role != 'admin' and current_user_id != user_id:
+        return jsonify({'message': 'Access denied'}), 403
+    
+    user_level = UserLevel.query.filter_by(user_id=user_id, level_id=level_id).first()
+    if not user_level:
+        return jsonify({'message': 'Level not purchased'}), 400
+    
+    video_progress = UserVideoProgress.query.filter_by(user_level_id=user_level.id, video_id=video_id).first()
+    if not video_progress:
+        return jsonify({'message': 'Video not accessible'}), 400
+    
+    data = request.get_json()
+    correct_words = data.get('correct_words', 0)
+    wrong_words = data.get('wrong_words', 0)
+    total_words = correct_words + wrong_words
+    percentage = (correct_words / total_words * 100) if total_words > 0 else 0
+    
+    video_progress.correct_words = correct_words
+    video_progress.wrong_words = wrong_words
+    video_progress.percentage = percentage
+    video_progress.correct_words_list = json.dumps(data.get('correct_words_list', []))
+    video_progress.wrong_words_list = json.dumps(data.get('wrong_words_list', []))
+    
+    db.session.commit()
+    
+    return jsonify({
+        'message': 'Video questions submitted successfully',
+        'correct_words': correct_words,
+        'wrong_words': wrong_words,
+        'percentage': percentage
+    }), 200
+
+# Report Route
+@bp.route('/report', methods=['GET'])
+@client_required
+def get_user_report():
+    current_user_id = int(get_jwt_identity())
+    user = User.query.get(current_user_id)
+    if not user:
+        return jsonify({'message': 'User not found'}), 404
+    
+    user_data = {
+        'id': user.id,
+        'name': user.name,
+        'email': user.email,
+        'role': user.role,
+        'picture': user.picture
+    }
+    
+    user_levels = UserLevel.query.filter_by(user_id=current_user_id).all()
+    levels_data = []
+    
+    for user_level in user_levels:
+        level = user_level.level
+        videos_progress = UserVideoProgress.query.filter_by(user_level_id=user_level.id).all()
+        videos_data = []
+        
+        for progress in videos_progress:
+            video = Video.query.get(progress.video_id)
+            videos_data.append({
+                'video_id': video.id,
+                'is_opened': progress.is_opened,
+                'is_completed': progress.is_completed,
+                'correct_words': progress.correct_words,
+                'wrong_words': progress.wrong_words,
+                'percentage': progress.percentage,
+                'correct_words_list': json.loads(progress.correct_words_list) if progress.correct_words_list else [],
+                'wrong_words_list': json.loads(progress.wrong_words_list) if progress.wrong_words_list else []
+            })
+        
+        exams = ExamResult.query.filter_by(user_id=current_user_id, level_id=level.id).all()
+        exams_data = []
+        
+        for exam in exams:
+            exams_data.append({
+                'type': exam.type,
+                'correct_words': exam.correct_words,
+                'wrong_words': exam.wrong_words,
+                'percentage': exam.percentage,
+                'correct_words_list': json.loads(exam.correct_words_list) if exam.correct_words_list else [],
+                'wrong_words_list': json.loads(exam.wrong_words_list) if exam.wrong_words_list else [],
+                'timestamp': exam.timestamp.isoformat()
+            })
+        
+        level_data = {
+            'level_id': level.id,
+            'level_name': level.name,
+            'level_description': level.description,
+            'is_completed': user_level.is_completed,
+            'can_take_final_exam': user_level.can_take_final_exam,
+            'initial_exam_score': user_level.initial_exam_score,
+            'final_exam_score': user_level.final_exam_score,
+            'score_difference': user_level.score_difference,
+            'videos': videos_data,
+            'exams': exams_data
+        }
+        
+        levels_data.append(level_data)
+    
+    report = {
+        'user': user_data,
+        'levels': levels_data
+    }
+    
+    return jsonify(report), 200
 
 # User Progress Routes
 @bp.route('/users/<int:user_id>/levels', methods=['GET'])
