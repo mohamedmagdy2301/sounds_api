@@ -24,9 +24,9 @@ class Level(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), nullable=False)
     description = db.Column(db.Text, nullable=True)
-    level_number = db.Column(db.Integer, nullable=False) # New attribute
+    level_number = db.Column(db.Integer, nullable=False)
     welcome_video_url = db.Column(db.String(200), nullable=True)
-    image_path = db.Column(db.String(200), nullable=True) # Changed from image_url
+    image_path = db.Column(db.String(200), nullable=True)
     price = db.Column(db.Float, nullable=False)
     initial_exam_question = db.Column(db.Text, nullable=True)
     final_exam_question = db.Column(db.Text, nullable=True)
@@ -65,6 +65,11 @@ class UserVideoProgress(db.Model):
     video_id = db.Column(db.Integer, db.ForeignKey('video.id'), nullable=False)
     is_opened = db.Column(db.Boolean, default=False)
     is_completed = db.Column(db.Boolean, default=False)
+    correct_words = db.Column(db.Integer, nullable=True)
+    wrong_words = db.Column(db.Integer, nullable=True)
+    percentage = db.Column(db.Float, nullable=True)
+    correct_words_list = db.Column(db.Text, nullable=True)
+    wrong_words_list = db.Column(db.Text, nullable=True)
 
     def __repr__(self):
         return f'UserVideoProgress(UserLevel: {self.user_level_id}, Video: {self.video_id}, Opened: {self.is_opened}, Completed: {self.is_completed})'
@@ -78,6 +83,8 @@ class ExamResult(db.Model):
     percentage = db.Column(db.Float, nullable=False)
     type = db.Column(db.String(20), nullable=False)
     timestamp = db.Column(db.DateTime, default=datetime.utcnow)
+    correct_words_list = db.Column(db.Text, nullable=True)
+    wrong_words_list = db.Column(db.Text, nullable=True)
 
     def __repr__(self):
         return f'ExamResult(User: {self.user_id}, Level: {self.level_id}, Type: {self.type}, Score: {self.percentage})'
